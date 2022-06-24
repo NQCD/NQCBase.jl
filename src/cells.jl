@@ -1,91 +1,99 @@
-using LinearAlgebra: norm, mul!
-using Distances: evaluate, PeriodicEuclidean
+using Distances: Distances
+using StaticArrays: SMatrix, SVector
 
-export AbstractCell
-export PeriodicCell
-export InfiniteCell
-export set_periodicity!
-export set_vectors!
-export apply_cell_boundaries!
-export evaluate_periodic_distance
-export check_atoms_in_cell
-
-const periodic_distance = PeriodicEuclidean([1, 1, 1])
-
-abstract type AbstractCell end
-
-struct InfiniteCell <: AbstractCell end
-
-"""
-    PeriodicCell{T<:AbstractFloat} <: AbstractCell
-
-Optionally periodic cell
-"""
-struct PeriodicCell{T<:AbstractFloat} <: AbstractCell
-    vectors::Matrix{T}
-    inverse::Matrix{T}
-    periodicity::Vector{Bool}
-    tmp_vector1::Vector{T}
-    tmp_vector2::Vector{T}
-    tmp_bools::Vector{Bool}
-    function PeriodicCell{T}(vectors::AbstractMatrix, periodicity::Vector{Bool}) where {T}
-        new{T}(vectors, inv(vectors), periodicity,
-            zeros(size(vectors)[1]), zeros(size(vectors)[1]), zeros(Bool, size(vectors)[1]))
+mutable struct PeriodicCell{S,T<:AbstractFloat,L} <: AbstractMatrix{T}
+    vectors::SMatrix{S,S,T,L}
+    inverse::SMatrix{S,S,T,L}
+    periodicity::SVector{S,Bool}
+    function PeriodicCell(vectors::AbstractMatrix, inverse::AbstractMatrix, periodicity::AbstractVector)
+        T = promote_type(eltype(vectors), eltype(inverse))
+        S = size(vectors, 1)
+        L = length(vectors)
+        new{S,T,L}(vectors, inverse, periodicity)
     end
 end
 
-Base.eltype(::PeriodicCell{T}) where {T} = T
-
-function PeriodicCell(vectors::AbstractMatrix{T}) where {T<:AbstractFloat}
-    PeriodicCell{T}(vectors, [true, true, true]) 
+function PeriodicCell(vectors::AbstractMatrix, periodicity::AbstractVector)
+    return PeriodicCell(vectors, inv(vectors), periodicity)
 end
 
-function PeriodicCell(vectors::AbstractMatrix{<:Integer})
-    PeriodicCell{Float64}(vectors, [true, true, true]) 
+function PeriodicCell(vectors::AbstractMatrix)
+    S = size(vectors, 1)
+    periodicity = SVector{S}(true for _=1:S)
+    return PeriodicCell(vectors, periodicity)
 end
 
-function set_periodicity!(cell::PeriodicCell, periodicity::Vector{Bool})
-    cell.periodicity .= periodicity
+Base.getindex(cell::PeriodicCell, I::Vararg{Int,2}) = getindex(cell.vectors, I...)
+Base.setindex!(cell::PeriodicCell, v, I::Vararg{Int,2}) = setindex!(cell.vectors, v, I...)
+Base.eltype(::PeriodicCell{S,T}) where {S,T} = T
+Base.size(cell::PeriodicCell) = size(cell.vectors)
+
+Base.:*(cell::PeriodicCell, r::AbstractVector) = cell.vectors * r
+Base.:\(cell::PeriodicCell, r::AbstractVector) = cell.inverse * r
+
+function AtomsBase.bounding_box(cell::PeriodicCell{S}) where {S}
+    return SVector{S}(vec * u"bohr" for vec in eachcol(cell.vectors))
 end
 
-function set_vectors!(cell::PeriodicCell, vectors::Matrix)
-    cell.vectors .= vectors
-    cell.inverse .= inv(cell.vectors)
+function AtomsBase.boundary_conditions(cell::PeriodicCell{S}) where {S}
+    return SVector{S}(
+        bc ? AtomsBase.Periodic() : AtomsBase.DirichletZero() for bc in cell.periodicity
+    )
+end
+
+AtomsBase.periodicity(cell::PeriodicCell) = cell.periodicity
+AtomsBase.n_dimensions(::PeriodicCell{S}) where {S} = S
+
+function set_periodicity!(cell::PeriodicCell, periodicity::AbstractVector{<:Bool})
+    cell.periodicity = periodicity
+end
+
+function set_vectors!(cell::PeriodicCell, vectors::AbstractMatrix)
+    cell.vectors = vectors
+    cell.inverse = inv(cell.vectors)
 end
 
 function apply_cell_boundaries!(cell::PeriodicCell, R::AbstractMatrix)
-    @views for i in axes(R, 2) # atoms
-        apply_cell_boundaries!(cell, R[:,i])
+    @views for r in eachcol(R)
+        apply_cell_boundaries!(cell, r)
     end
 end
-apply_cell_boundaries!(::InfiniteCell, ::AbstractArray) = nothing
 
-function apply_cell_boundaries!(cell::PeriodicCell, R::AbstractVector)
-    mul!(cell.tmp_vector1, cell.inverse, R)
-    for j in axes(R, 1) # DoFs
-        if cell.periodicity[j]
-            cell.tmp_vector1[j] = mod(cell.tmp_vector1[j], 1)
-        end
-    end
-    mul!(R, cell.vectors, cell.tmp_vector1)
+function apply_cell_boundaries!(cell::PeriodicCell{S}, R::AbstractVector) where {S}
+    fractional = cell \ R
+    corrected = SVector{S}(
+        cell.periodicity[j] ? mod(fractional[j], 1) : fractional[j] for j in eachindex(R)
+    )
+    R .= cell * corrected
 end
 
-"""
-    check_atoms_in_cell(cell::PeriodicCell, R::AbstractMatrix)::Bool
-
-True if all atoms are inside the cell, false otherwise.
-"""
 function check_atoms_in_cell(cell::PeriodicCell, R::AbstractMatrix)::Bool
-    @views for i in axes(R, 2) # atoms
-        mul!(cell.tmp_vector1, cell.inverse, R[:,i])
-        @. cell.tmp_bools = (cell.tmp_vector1 > 1) | (cell.tmp_vector1 < 0)
-        any(cell.tmp_bools) && return false
+    @views for r in eachcol(R) # atoms
+        fractional = cell \ r
+        outside = @. (fractional > 1) | (fractional < 0)
+        any(outside) && return false
     end
-    true
+    return true
 end
 
+const periodic_distance = Distances.PeriodicEuclidean([1, 1, 1])
 function evaluate_periodic_distance(cell::PeriodicCell, r1::AbstractVector, r2::AbstractVector)
-    mul!(cell.tmp_vector1, cell.inverse, r1)
-    mul!(cell.tmp_vector2, cell.inverse, r2)
-    evaluate(periodic_distance, cell.tmp_vector1, cell.tmp_vector2)
+    fractional1 = cell \ r1
+    fractional2 = cell \ r2
+    return Distances.evaluate(periodic_distance, fractional1, fractional2)
 end
+
+struct InfiniteCell{S} end
+InfiniteCell() = InfiniteCell{1}()
+
+apply_cell_boundaries!(::InfiniteCell, ::AbstractArray) = nothing
+check_atoms_in_cell(::InfiniteCell, r) = true
+AtomsBase.bounding_box(::InfiniteCell{S}) where {S} = AtomsBase.infinite_box(S)
+
+function AtomsBase.boundary_conditions(::InfiniteCell{S}) where {S}
+    return SVector{S}(AtomsBase.DirichletZero() for _ in 1:S)
+end
+
+AtomsBase.periodicity(::InfiniteCell{S}) where {S} = SVector{S}(false for _ in 1:S)
+AtomsBase.n_dimensions(::InfiniteCell{S}) where {S} = S
+

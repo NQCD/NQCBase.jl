@@ -1,6 +1,4 @@
 
-export Atoms
-
 """
     Atoms{T<:AbstractFloat}
 
@@ -24,33 +22,60 @@ struct Atoms{T<:AbstractFloat}
     types::Vector{Symbol}
     numbers::Vector{Int}
     masses::Vector{T}
+    function Atoms{T}(types::AbstractVector) where {T<:AbstractFloat}
+        numbers = [element.number for element in elements[types]]
+        masses = [austrip(element.atomic_mass) for element in elements[types]]
+        new{T}(types, numbers, masses)
+    end
 end
+Atoms(types::AbstractVector) = Atoms{Float64}(types)
+Atoms{T}(types...) where {T<:AbstractFloat} = Atoms{T}(collect(types))
+Atoms(types...) = Atoms(collect(types))
 
-function Atoms{T}(atom_types::AbstractVector{Symbol}) where {T}
-    types = Vector{Symbol}(atom_types)
-    numbers = Vector{Int}([element.number for element in elements[atom_types]])
-    masses = Vector{T}([austrip(element.atomic_mass) for element in elements[atom_types]])
-    Atoms{T}(types, numbers, masses)
-end
-
-function Atoms{T}(masses::AbstractVector) where {T}
-    natoms = length(masses)
-    types = Vector{Symbol}(fill(:X, natoms))
-    numbers = Vector{Int}(zeros(natoms))
-    masses = Vector{T}(austrip.(masses))
-    Atoms{T}(types, numbers, masses)
-end
-
-Atoms{T}(atom_type) where {T} = Atoms{T}([atom_type])
-Atoms(atom_types) = Atoms{Float64}(atom_types)
-
-Base.length(atoms::Atoms) = length(atoms.types)
-Base.range(atoms::Atoms) = range(1; length=length(atoms))
-
-Base.IndexStyle(::Atoms) = IndexLinear()
-Base.getindex(A::Atoms{T}, i::Int) where {T} = Atoms{T}(A.types[i])
-Base.getindex(A::Atoms{T}, i::AbstractRange) where {T} = Atoms{T}(A.types[i])
+Base.getindex(A::Atoms{T}, i) where {T} = Atoms{T}(A.types[i])
 
 function Base.:(==)(a::Atoms, b::Atoms)
-    (a.types == b.types) && (a.numbers == b.numbers) && (a.masses ≈ b.masses)
+    return (a.types == b.types) && (a.numbers == b.numbers) && (a.masses ≈ b.masses)
 end
+
+function Base.show(io::IO, atoms::Atoms{T}) where {T}
+    print(io, "Atoms{$T}($(atoms.types))")
+end
+
+AtomsBase.atomic_symbol(atoms::Atoms) = atoms.types
+AtomsBase.atomic_mass(atoms::Atoms) = atoms.masses * u"me_au"
+AtomsBase.atomic_number(atoms::Atoms) = atoms.numbers
+
+AtomsBase.atomic_symbol(atoms::Atoms, i) = atoms.types[i]
+AtomsBase.atomic_mass(atoms::Atoms, i) = atoms.masses[i] * u"me_au"
+AtomsBase.atomic_number(atoms::Atoms, i) = atoms.numbers[i]
+
+struct Particles{T<:AbstractFloat}
+    masses::Vector{T}
+    Particles{T}(masses::AbstractVector) where {T<:AbstractFloat} = new{T}(austrip.(masses))
+end
+Particles(masses::AbstractVector{T}) where {T<:AbstractFloat} = Particles{T}(masses)
+Particles(masses::AbstractVector) = Particles{Float64}(masses)
+Particles{T}(masses...) where {T<:AbstractFloat} = Particles{T}(collect(masses))
+Particles(masses...) = Particles(collect(masses))
+Atoms(masses::AbstractVector{<:Real}) = Particles(masses)
+
+Base.getindex(A::Particles{T}, i) where {T} = Particles{T}(A.masses[i])
+
+function Base.:(==)(a::Particles, b::Particles)
+    return (a.masses ≈ b.masses)
+end
+
+AtomsBase.atomic_mass(atoms::Particles) = atoms.masses * u"me_au"
+AtomsBase.atomic_mass(atoms::Particles, i) = atoms.masses[i] * u"me_au"
+AtomsBase.atomic_symbol(::Particles) = throw(error("Particles do not have atomic symbols, use `Atoms` instead."))
+AtomsBase.atomic_symbol(::Particles, _) = throw(error("Particles do not have atomic symbols, use `Atoms` instead."))
+AtomsBase.atomic_number(::Particles) = throw(error("Particles do not have atomic numbers, use `Atoms` instead."))
+AtomsBase.atomic_number(::Particles, _) = throw(error("Particles do not have atomic numbers, use `Atoms` instead."))
+
+const AtomTypes = Union{Atoms, Particles}
+
+Base.length(atoms::AtomTypes) = length(atoms.masses)
+Base.range(atoms::AtomTypes) = range(1; length=length(atoms))
+Base.IndexStyle(::AtomTypes) = IndexLinear()
+masses(atoms::AtomTypes) = atoms.masses

@@ -22,7 +22,7 @@ function convert_to_ase_atoms(atoms::Atoms, R::Matrix, cell::PeriodicCell)
         pbc=cell.periodicity)
 end
 
-function convert_to_ase_atoms(atoms::Atoms, R::Vector{<:Matrix}, cell::AbstractCell)
+function convert_to_ase_atoms(atoms::Atoms, R::Vector{<:Matrix}, cell)
     convert_to_ase_atoms.(Ref(atoms), R, Ref(cell))
 end
 
@@ -35,8 +35,8 @@ positions(ase_atoms::PyObject) = austrip.(ase_atoms.get_positions()'u"Å")
 
 function Cell(ase_atoms::PyObject)
     if all(ase_atoms.cell.array .== 0)
-        return InfiniteCell()
+        return InfiniteCell{3}()
     else
-        return PeriodicCell{Float64}(austrip.(ase_atoms.cell.array'u"Å"), ase_atoms.pbc)
+        return PeriodicCell(austrip.(ase_atoms.cell.array'u"Å"), ase_atoms.pbc)
     end
 end

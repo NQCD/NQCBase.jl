@@ -63,3 +63,24 @@ function from_extxyz_dict(dict::Dict{String,Any})
 
     return atoms, R, cell
 end
+
+function Atoms(filename)
+    isxyzfile(filename) || throw(error("File must be a `.xyz`."))
+    dict = ExtXYZ.read_frame(filename)
+    return Atoms(Symbol.(dict["arrays"]["species"]))
+end
+
+function Cell(filename)
+    isxyzfile(filename) || throw(error("File must be a `.xyz`."))
+    dict = ExtXYZ.read_frame(filename)
+    if haskey(dict, "cell")
+        c = austrip.(permutedims(dict["cell"]) * u"Å")
+        cell = haskey(dict, "pbc") ? PeriodicCell(c, dict["pbc"]) : PeriodicCell(c)
+        return cell
+    else
+        return InfiniteCell{3}()
+    end
+end
+
+isxyzfile(filename) = splitext(filename)[end] == ".xyz"
+
