@@ -1,7 +1,7 @@
 name = "NQCBase"
 uuid = "78c76ebc-5665-4934-b512-82d81b5cbfb7"
 authors = ["James Gardner <james.gardner1421@gmail.com> and contributors"]
-version = "0.3.0"
+version = "0.3.1"
 
 [deps]
 AtomsBase = "a963bdd2-2df7-4f54-a1ee-49d51e6be12a"
@@ -25,15 +25,10 @@ Unitful = "1"
 UnitfulAtomic = "1"
 julia = "1"
 
-[sources]
-NQCDInterfASE = {url="https://github.com/NQCD/NQCDInterfASE.jl"}
-
 [extras]
 AtomsBaseTesting = "ed7c10db-df7e-4efa-a7be-4f4190f7f227"
-PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
-NQCDInterfASE = "4606675f-2246-4a0b-99d5-75b910de637b"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["AtomsBaseTesting", "PythonCall", "Test", "SafeTestsets", "NQCDInterfASE"]
+test = ["AtomsBaseTesting", "Test", "SafeTestsets"]
