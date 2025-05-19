@@ -9,7 +9,7 @@ function Cell(system::AtomsBase.AbstractSystem)
     if isa(AtomsBase.cell(system), AtomsBase.IsolatedCell)
         return NQCBase.InfiniteCell()
     else
-        box = AtomsBase.bounding_box(system)
+        box = AtomsBase.cell_vectors(system)
         cell = PeriodicCell(reduce(hcat, box))
         NQCBase.set_periodicity!(cell, vcat(AtomsBase.periodicity(system)...))
         return cell
@@ -38,7 +38,7 @@ function Velocity(system::AtomsBase.AbstractSystem)
     return output
 end
 
-function AtomsBase.bounding_box(cell::PeriodicCell)
+function AtomsBase.cell_vectors(cell::PeriodicCell)
     S = size(cell.vectors, 2)
     return SVector{S}(auconvert.(u"Å", vec) for vec in eachcol(cell.vectors))
 end
@@ -94,7 +94,7 @@ function build_system(atoms, cell::InfiniteCell)
 end
 
 function build_system(atoms, cell::PeriodicCell)
-    box = AtomsBase.bounding_box(cell)
+    box = AtomsBase.cell_vectors(cell)
     bc = (cell.periodicity...,) # PBC are now a Tuple{Bool} to make everything harder to use.
     return AtomsBase.atomic_system(atoms, box, bc)
 end
