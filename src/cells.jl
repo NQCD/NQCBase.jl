@@ -113,7 +113,7 @@ This type carries information about how to replicate periodic copies of a struct
 """
 struct Supercell{T}
     cell::PeriodicCell{T}
-    replicas::AbstractVector{PeriodicReplica}
+    replicas::AbstractVector{PeriodicReplica{T}}
 end
 
 """
