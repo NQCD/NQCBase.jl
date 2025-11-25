@@ -73,5 +73,5 @@ end
     supercell_xy = Supercell(cell, 1,1,0) 
     R_sup = supercell_xy(R)
     # Do the supercell positions contain the initial positions and then the translated ones?
-    @test hcat(R, R_xy) .== R_sup
+    @test all(hcat(R, R_xy) .== R_sup)
 end

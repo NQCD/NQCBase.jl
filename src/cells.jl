@@ -144,5 +144,5 @@ function Supercell(cell::PeriodicCell, x_range, y_range, z_range)
 end
 
 function (supercell::Supercell)(positions::AbstractMatrix)
-    return hcat(positions, [Rep(positions) for Rep in supercell.replicas])
+    return hcat(positions, [Rep(positions) for Rep in supercell.replicas]...)
 end
