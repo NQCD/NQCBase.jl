@@ -139,7 +139,7 @@ All translations have to be (signed) integers, so [1,0,0] is one unit cell trans
 """
 function Supercell(cell::PeriodicCell, x_range, y_range, z_range)
     # Build all possible combinations for replication
-    replicas = [PeriodicReplica(cell, vcat(i...)) for i in Iterators.product(x_range, y_range, z_range)]
+    replicas = [PeriodicReplica(cell, vcat(i...)) for i in Iterators.product(x_range, y_range, z_range)] |> vec
     return Supercell(cell, replicas)
 end
 
