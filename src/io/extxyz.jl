@@ -36,6 +36,22 @@ function read_extxyz(file)
     return atoms, positions, cell
 end
 
+"""
+    Structure(file::String)
+
+Use ExtXYZ.jl to read a structure from an ExtXYZ file
+"""
+function Structure(file::String, index=1)
+    eyxz_structure = ExtXYZ.read_frames(file)
+    atoms, positions, cell = from_extxyz_dict(exyz_structure)[index]
+    return Structure(
+        atoms,
+        positions,
+        cell,
+        exyz_structure[index]["info"]
+    )
+end
+
 function to_extxyz_dict(atoms::Atoms, R::Matrix, cell::PeriodicCell)
 
     dict = Dict{String, Any}()
