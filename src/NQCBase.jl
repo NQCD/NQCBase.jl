@@ -32,6 +32,9 @@ function Structure(atoms::NQCBase.Atoms, positions::AbstractMatrix, cell::Abstra
     end
     return Structure(atoms, positions, cell, Dict{String, Any}())
 end
+# Dummy functions for Makie extension. 
+function structure end
+function structure! end
 
 # I/O Interfaces
 include("io/extxyz.jl")
