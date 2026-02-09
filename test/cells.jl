@@ -59,3 +59,19 @@ end
     R[3, 5] -= 2
     @test !check_atoms_in_cell(cell, R) # Some atoms not inside cell
 end
+
+@testset "Periodic translations" begin
+    cell = PeriodicCell([1 0 0; 0 1 0; 0 0 1])
+    R = rand(3, 10)
+    translation_xy = NQCBase.PeriodicReplica(cell, [1,1,0])
+    R_xy = translation_xy(R)
+    # Does the translation work as expected?
+    for idx in axes(R_xy, 2)
+        @test R_xy[:, idx] == R[:, idx] + [1,1,0]
+    end
+    # Try building a Supercell which contains a single translation
+    supercell_xy = Supercell(cell, 1,1,0) 
+    R_sup = supercell_xy(R)
+    # Do the supercell positions contain the initial positions and then the translated ones?
+    @test all(hcat(R, R_xy) .== R_sup)
+end

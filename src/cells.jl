@@ -3,6 +3,7 @@ using Distances: evaluate, PeriodicEuclidean
 
 export AbstractCell
 export PeriodicCell
+export Supercell
 export InfiniteCell
 export set_periodicity!
 export set_vectors!
@@ -89,4 +90,59 @@ function evaluate_periodic_distance(cell::PeriodicCell, r1::AbstractVector, r2::
     mul!(cell.tmp_vector1, cell.inverse, r1)
     mul!(cell.tmp_vector2, cell.inverse, r2)
     evaluate(periodic_distance, cell.tmp_vector1, cell.tmp_vector2)
+end
+
+# Handler for periodic replicas of structures
+struct PeriodicReplica{T}
+    cell::PeriodicCell{T}
+    translation::AbstractVector{Int}
+end
+
+function (operation::PeriodicReplica)(positions::AbstractMatrix)
+    pos_translated = copy(positions)
+    @inbounds for idx in axes(pos_translated, 2)
+        pos_translated[:, idx] .+= operation.cell.vectors * operation.translation
+    end
+    return pos_translated
+end
+
+"""
+    Supercell{T}(cell::PeriodicCell, replicas::AbstractVector)
+
+This type carries information about how to replicate periodic copies of a structure based on the unit cell provided. 
+"""
+struct Supercell{T}
+    cell::PeriodicCell{T}
+    replicas::AbstractVector{PeriodicReplica{T}}
+end
+
+"""
+    Supercell(cell::PeriodicCell, x_range, y_range, z_range)
+
+Creates a `Supercell` which can be applied to a matrix of positions to generate all periodic copies, e.g. for plotting purposes in the following way:
+```
+sc = Supercell(cell, -1:1, [1,2], 1)
+sc(positions) # Gives a total matrix containing the initial positions and all possible translations in the respective directions
+```
+
+Three iterators must be supplied, for which all possible translations will be generated. These can be integers (e.g. leave `z_range = 0` to generate no replicas in z-direction), 
+or any other iterable that produces an Integer. 
+
+All translations have to be (signed) integers, so [1,0,0] is one unit cell translation along the positive x direction. 
+
+## Arguments
+
+- `cell`: Specification for a unit cell
+- `x_range`: Iterator yielding `Int`s to specify all x translations. 
+- `y_range`: Iterator yielding `Int`s to specify all y translations. 
+- `z_range`: Iterator yielding `Int`s to specify all z translations. 
+"""
+function Supercell(cell::PeriodicCell, x_range, y_range, z_range)
+    # Build all possible combinations for replication
+    replicas = [PeriodicReplica(cell, vcat(i...)) for i in Iterators.product(x_range, y_range, z_range)] |> vec
+    return Supercell(cell, replicas)
+end
+
+function (supercell::Supercell)(positions::AbstractMatrix)
+    return hcat(positions, [Rep(positions) for Rep in supercell.replicas]...)
 end
