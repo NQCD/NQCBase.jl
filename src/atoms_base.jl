@@ -48,6 +48,9 @@ function System(atoms::NQCBase.Atoms, position::AbstractMatrix, cell::AbstractCe
     output_atoms = AtomsBaseAtoms(atoms, position)
     return build_system(output_atoms, cell)
 end
+function System(structure::NQCBase.Structure)
+    return System(structure.atoms, structure.positions, structure.cell)
+end
 
 function System(atoms::NQCBase.Atoms, position::AbstractMatrix, velocity::AbstractMatrix, cell::AbstractCell=InfiniteCell())
     output_atoms = AtomsBaseAtoms(atoms, position, velocity)
