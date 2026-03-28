@@ -27,9 +27,9 @@ end
     write_extxyz(file_buffer, atoms, R, cell) # Save a 1-structure file
     structure = read_extxyz(file_buffer) |> first # Load the 1-structure file
     @test structure.atoms == atoms
-    @test structure.cell.vectors ≈ cell.vectors
-    @test structure.cell.inverse ≈ cell.inverse
-    @test structure.cell.periodicity ≈ cell.periodicity
+        @test all(isapprox.(structure.cell.vectors, cell.vectors, atol = 1e-8))
+        @test all(isapprox.(structure.cell.inverse, cell.inverse; atol = 1e-8))
+        @test structure.cell.periodicity ≈ cell.periodicity
     @test all(isapprox.(structure.positions, R, atol = 1e-8))
 end
 
@@ -42,8 +42,8 @@ end
     structures = read_extxyz(fb)
     for (i,structure) in enumerate(structures)
         @test structure.atoms == atoms
-        @test structure.cell.vectors ≈ cell.vectors
-        @test structure.cell.inverse ≈ cell.inverse
+        @test all(isapprox.(structure.cell.vectors, cell.vectors, atol = 1e-8))
+        @test all(isapprox.(structure.cell.inverse, cell.inverse; atol = 1e-8))
         @test structure.cell.periodicity ≈ cell.periodicity
         @test all(isapprox.(structure.positions, R[i], atol = 1e-8))
     end
