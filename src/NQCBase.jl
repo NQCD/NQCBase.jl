@@ -19,9 +19,9 @@ Many functions in the NQCD packages use only parts of the structure information 
 
 If you are developing in NQCD, please include multiple dispatch versions of your functions using Structure types where this would be convenient to the user. 
 """
-struct Structure{T}
+struct Structure
     atoms::NQCBase.Atoms # Atoms object
-    positions::AbstractMatrix{T} # Positions matrix in atomic units, each column containing one atom's positions
+    positions::AbstractMatrix # Positions matrix in atomic units, each column containing one atom's positions
     cell::AbstractCell # Unit cell object
     info::Dict{String, Any} # Other structure information, e.g. from an ExtXYZ header
 end
