@@ -25,7 +25,13 @@ struct Structure
     cell::AbstractCell # Unit cell object
     info::Dict{String, Any} # Other structure information, e.g. from an ExtXYZ header
 end
-Structure(atoms::NQCBase.Atoms, positions::AbstractMatrix, cell::AbstractCell) = Structure(atoms, positions, cell, Dict{String, Any}())
+function Structure(atoms::NQCBase.Atoms, positions::AbstractMatrix, cell::AbstractCell)
+    @assert length(atoms.types) == size(positions, 2) "Size of Positions needs to match number of Atoms. "
+    if isa(cell, PeriodicCell)
+        @assert size(cell.vectors, 1) == size(positions, 1) "Unit cell vectors must have the same dimensionality as Positions. "
+    end
+    return Structure(atoms, positions, cell, Dict{String, Any}())
+end
 
 # I/O Interfaces
 include("io/extxyz.jl")
