@@ -19,13 +19,19 @@ Many functions in the NQCD packages use only parts of the structure information 
 
 If you are developing in NQCD, please include multiple dispatch versions of your functions using Structure types where this would be convenient to the user. 
 """
-struct Structure{T}
+struct Structure
     atoms::NQCBase.Atoms # Atoms object
-    positions::AbstractMatrix{T} # Positions matrix in atomic units, each column containing one atom's positions
+    positions::AbstractMatrix # Positions matrix in atomic units, each column containing one atom's positions
     cell::AbstractCell # Unit cell object
     info::Dict{String, Any} # Other structure information, e.g. from an ExtXYZ header
 end
-Structure(atoms::NQCBase.Atoms, positions::AbstractMatrix, cell::AbstractCell) = Structure(atoms, positions, cell, Dict{String, Any}())
+function Structure(atoms::NQCBase.Atoms, positions::AbstractMatrix, cell::AbstractCell)
+    @assert length(atoms.types) == size(positions, 2) "Size of Positions needs to match number of Atoms. "
+    if isa(cell, PeriodicCell)
+        @assert size(cell.vectors, 1) == size(positions, 1) "Unit cell vectors must have the same dimensionality as Positions. "
+    end
+    return Structure(atoms, positions, cell, Dict{String, Any}())
+end
 
 # I/O Interfaces
 include("io/extxyz.jl")
