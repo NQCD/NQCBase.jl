@@ -6,10 +6,19 @@ using UnitfulAtomic
 using Unitful
 using NQCBase
 
+#atom_colors = [Symbol(el.symbol) => parse(Makie.Colors.Colorant, el.cpk_hex) for el in PeriodicTable.elements]
+atom_colors = []
+for el in PeriodicTable.elements
+    col = colorant"#6e6e6e"
+    try
+        col = parse(Makie.Colors.Colorant, el.cpk_hex)
+    catch e
+    end
+    push!(atom_colors, Symbol(el) => col)
+end
+
 # Default atom colours
-const default_atom_fills = Dict(
-    [Symbol(el.symbol), parse(Makie.Colors.Colorant, el.cpk_hex) for el in elements]
-)
+const default_atom_fills = Dict(atom_colors...)
 # Empirical atomic radii (pm) from Wikipedia data page:
 # https://en.wikipedia.org/wiki/Atomic_radii_of_the_elements_(data_page)
 const default_atomic_radii_pm = Dict{Symbol, Float64}(
@@ -113,34 +122,63 @@ bettersphere = Makie.GeometryBasics.mesh(
      )
  )
 
-@recipe AtomicStructure (structure) begin
-    # Pass default atom fills and atomic radii to allow modification. 
-    atom_fills = default_atom_fills
-    atomic_radii_Å = Dict([el, ustrip(uconvert(u"Å", rad * u"pm")) for (el, rad) in default_atomic_radii_pm]) # Convert to Angstrom
-    # Default edge width
-    strokewidth = 1.5
-    # Default higher-quality sphere model for raster exports. 
+@recipe AtomicStructure3DAtoms (structure, ) begin
+    """
+    Dictionary{Symbol, Float64} mapping element symbols to atomic radii in Angstroms for plotting. Default values are based on empirical atomic radii in picometers from Wikipedia data page.
+
+    e.g. `:C => 0.7` for carbon atoms with a radius of 0.7 Å.
+    """
+    atomicradii = Dict([el => ustrip(uconvert(u"Å", rad * u"pm")) for (el, rad) in default_atomic_radii_pm]...)
+    """
+    Dictionary{Symbol, Colorant} mapping element symbols to colors for plotting. Default values are based on CPK coloring scheme taken from PeriodicTable.jl.
+
+        e.g. `:C => colorant"black"` for carbon atoms colored black.
+    """
+    atomcolors = default_atom_fills
+    """
+    Colour multiplier used to darken the atom edge colour relative to the fill colour. Default value is 0.5, which means the edge colour will be half as bright as the fill colour.
+    """
+    atomsstrokecolormultiplier = 0.5
+    """
+    The marker to use for plotting atoms. Default is a high-resolution sphere, which might make vector graphics larger.
+    Consider using `rasterize=true` in the plot attributes to mitigate this.
+    """
     marker = bettersphere
-    Makie.mixin_generic_plot_attributes()...
+    "Atom edge width in pt, default is 1.5 pt."
+    strokewidth = 1.5
+    "Whether to show cell boundaries. Default is true."
+    show_cell = true
+    "Colour for the cell boundaries. Default is black."
+    cellcolor = colorant"black"
+    "Line width for the cell boundaries in pt. Default is 1.0 pt."
+    celllinewidth = 1.0
+    "Alpha transparency for the cell boundaries. Default is 0.5."
+    cellalpha = 1.0
 end
 
 # Plot in 3D by default
-Makie.args_preferred_axis(::Type{<: AtomicStructure}) = Makie.Axis3
+# Makie.args_preferred_axis(::Type{<: AtomicStructure3DAtoms}) = Makie.Axis3
 
-function Makie.plot!(
-    structure::AtomicStructure{<:Tuple{NQCBase.Structure}},
-)
-    input_nodes = [:converted_1]
-    output_nodes = [:positions, :markersizes, :interior_colors, :edge_colors, ]
-    
-    map!(structure.attributes, input_nodes, output_nodes) do nqcd_structure
-        pos = ustrip.(auconvert.(u"Å", nqcd_structure.positions))
-        positions = Point3f.(eachcol(positions))
-        markersizes = [get()]
-        return positions
-    end
-    
-    
-    
-    return structure
+function Makie.plot!(plot::AtomicStructure3DAtoms, )
+    structure = plot[:structure]    
+    # Generate positions in Angstroms and convert to Point3f format for plotting
+    positions_AA = auconvert.(u"Å", structure.positions) .|> ustrip
+    positions_AA = [Point3f(pos...) for pos in eachcol(positions_AA)]
+    # Generate marker sizes based on conversion dict
+    marker_sizes = [plot[:atomicradii][el] for el in structure.atoms.symbols]
+    # Generate colors based on conversion dict
+    colors = [plot[:atomcolors][el] for el in structure.atoms.symbols]
+    meshscatter!(
+          plot,
+          positions_AA,
+          color = colors,
+          marker = plot[:marker],
+          markersize = marker_sizes,
+          #ssao = true,
+          # strokewidth = atom_strokewidth,
+          # strokecolor = [get(atom_edges, i, colorant"black") for i in trj_postprocessed[:atoms].types[atoms_to_draw]],
+          rasterize = true,
+        )
+    return plot
+end
 end
