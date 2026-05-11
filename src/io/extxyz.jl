@@ -68,6 +68,8 @@ function to_extxyz_dict(atoms::Atoms, R::Matrix, cell::AbstractCell; info::Dict{
     dict["arrays"]["species"] = String.(atoms.types) |> Array
     dict["arrays"]["pos"] = au_to_ang.(R)
 
+    add_cell_info!(dict, cell)
+
     dict["info"] = info
 
     return dict
@@ -84,7 +86,7 @@ function from_extxyz_dict(dict::Dict{String,Any})
     atoms = Atoms(Symbol.(dict["arrays"]["species"]))
     R = ang_to_au.(dict["arrays"]["pos"])
     cell = InfiniteCell()
-    if haskey(dict, "cell")
+    if haskey(dict, "cell") && haskey(dict, "pbc") && any(dict["pbc"])
         # In case no PBC is provided, assume all dimensions are periodic.
         pbc = haskey(dict, "pbc") ? dict["pbc"] : [true, true, true]
         c = permutedims(dict["cell"], (2, 1))
