@@ -39,11 +39,11 @@ Base.eltype(::PeriodicCell{T}) where {T} = T
 
 function PeriodicCell(vectors::AbstractMatrix)
     vectors = austrip.(vectors)
-    PeriodicCell{eltype(vectors)}(vectors, [true, true, true]) 
+    PeriodicCell{eltype(vectors)}(vectors, [true, true, true])
 end
 
 function PeriodicCell(vectors::AbstractMatrix{<:Integer})
-    PeriodicCell{Float64}(vectors, [true, true, true]) 
+    PeriodicCell{Float64}(vectors, [true, true, true])
 end
 
 function set_periodicity!(cell::PeriodicCell, periodicity::AbstractVector{Bool})
@@ -57,7 +57,7 @@ end
 
 function apply_cell_boundaries!(cell::PeriodicCell, R::AbstractMatrix)
     @views for i in axes(R, 2) # atoms
-        apply_cell_boundaries!(cell, R[:,i])
+        apply_cell_boundaries!(cell, R[:, i])
     end
 end
 apply_cell_boundaries!(::InfiniteCell, ::AbstractArray) = nothing
@@ -79,7 +79,7 @@ True if all atoms are inside the cell, false otherwise.
 """
 function check_atoms_in_cell(cell::PeriodicCell, R::AbstractMatrix)::Bool
     @views for i in axes(R, 2) # atoms
-        mul!(cell.tmp_vector1, cell.inverse, R[:,i])
+        mul!(cell.tmp_vector1, cell.inverse, R[:, i])
         @. cell.tmp_bools = (cell.tmp_vector1 > 1) | (cell.tmp_vector1 < 0)
         any(cell.tmp_bools) && return false
     end
@@ -109,7 +109,11 @@ end
 """
     Supercell{T}(cell::PeriodicCell, replicas::AbstractVector)
 
-This type carries information about how to replicate periodic copies of a structure based on the unit cell provided. 
+A `Supercell` contains information for how the unit cell should be replicated in each dimension.
+
+## Fields:
+- `cell`: The unit cell which should be replicated.
+- `replicas`: A vector of `PeriodicReplica`s, which contain the translation vectors for the respective replicas.
 """
 struct Supercell{T}
     cell::PeriodicCell{T}
@@ -125,17 +129,17 @@ sc = Supercell(cell, -1:1, [1,2], 1)
 sc(positions) # Gives a total matrix containing the initial positions and all possible translations in the respective directions
 ```
 
-Three iterators must be supplied, for which all possible translations will be generated. These can be integers (e.g. leave `z_range = 0` to generate no replicas in z-direction), 
-or any other iterable that produces an Integer. 
+Three iterators must be supplied, for which all possible translations will be generated. These can be integers (e.g. leave `z_range = 0` to generate no replicas in z-direction),
+or any other iterable that produces an Integer.
 
-All translations have to be (signed) integers, so [1,0,0] is one unit cell translation along the positive x direction. 
+All translations have to be (signed) integers, so [1,0,0] is one unit cell translation along the positive x direction.
 
 ## Arguments
 
 - `cell`: Specification for a unit cell
-- `x_range`: Iterator yielding `Int`s to specify all x translations. 
-- `y_range`: Iterator yielding `Int`s to specify all y translations. 
-- `z_range`: Iterator yielding `Int`s to specify all z translations. 
+- `x_range`: Iterator yielding `Int`s to specify all x translations.
+- `y_range`: Iterator yielding `Int`s to specify all y translations.
+- `z_range`: Iterator yielding `Int`s to specify all z translations.
 """
 function Supercell(cell::PeriodicCell, x_range, y_range, z_range)
     # Build all possible combinations for replication
@@ -144,5 +148,5 @@ function Supercell(cell::PeriodicCell, x_range, y_range, z_range)
 end
 
 function (supercell::Supercell)(positions::AbstractMatrix)
-    return hcat(positions, [Rep(positions) for Rep in supercell.replicas]...)
+    return hcat([Rep(positions) for Rep in supercell.replicas]...)
 end
