@@ -1,3 +1,7 @@
+> [!NOTE]
+> NQCBase is now incorporated in the NQCDynamics.jl monorepo [HERE](https://github.com/NQCD/NQCDynamics.jl.git).
+> Any further developments will be made there.
+
 # NQCBase
 
 [![CI](https://github.com/NQCD/NQCBase.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/NQCD/NQCBase.jl/actions/workflows/CI.yml)
